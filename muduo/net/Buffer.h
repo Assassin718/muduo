@@ -77,6 +77,7 @@ class Buffer : public muduo::copyable
   size_t prependableBytes() const
   { return readerIndex_; }
 
+// 拿出可读数据
   const char* peek() const
   { return begin() + readerIndex_; }
 
@@ -113,6 +114,7 @@ class Buffer : public muduo::copyable
   // retrieve returns void, to prevent
   // string str(retrieve(readableBytes()), readableBytes());
   // the evaluation of two functions are unspecified
+  // 挪动读指针
   void retrieve(size_t len)
   {
     assert(len <= readableBytes());

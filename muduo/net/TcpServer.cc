@@ -68,8 +68,10 @@ void TcpServer::start()
   }
 }
 
+// 被Acceptor::handleRead()调用, 传入新连接的fd和地址
 void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
 {
+  // 获得线程池的一个线程的eventloop
   loop_->assertInLoopThread();
   EventLoop* ioLoop = threadPool_->getNextLoop();
   char buf[64];
@@ -83,6 +85,7 @@ void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
   InetAddress localAddr(sockets::getLocalAddr(sockfd));
   // FIXME poll with zero timeout to double confirm the new connection
   // FIXME use make_shared if necessary
+  // 建立新的TcpConnection
   TcpConnectionPtr conn(new TcpConnection(ioLoop,
                                           connName,
                                           sockfd,
@@ -92,8 +95,10 @@ void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
   conn->setConnectionCallback(connectionCallback_);
   conn->setMessageCallback(messageCallback_);
   conn->setWriteCompleteCallback(writeCompleteCallback_);
+  // 关闭连接时调用removeConnetionInLoop, 将connection从connectionMap中移除
   conn->setCloseCallback(
       std::bind(&TcpServer::removeConnection, this, _1)); // FIXME: unsafe
+  // 在对应的线程中调用TcpConnection::connectEstablished
   ioLoop->runInLoop(std::bind(&TcpConnection::connectEstablished, conn));
 }
 

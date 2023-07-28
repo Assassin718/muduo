@@ -320,6 +320,9 @@ void TcpConnection::stopReadInLoop()
   }
 }
 
+// 在建立连接后, 会通过acceptor的connectionCallback调用TcpServer::newConnection调用该函数
+// (解耦合, 在对应的类中处理对应类的数据结构, 处理完后调用下一个类的处理函数, 有点责任链模式那味)
+// channel的readCallback是起点, 一直往下传导
 void TcpConnection::connectEstablished()
 {
   loop_->assertInLoopThread();
@@ -328,19 +331,23 @@ void TcpConnection::connectEstablished()
   channel_->tie(shared_from_this());
   channel_->enableReading();
 
+// 最后调用用户传进来的函数
   connectionCallback_(shared_from_this());
 }
 
+// 由handleClose()调用TcpServer::removeConnection()再调用TcpServer::removeConnectionInLoop(), 再调到这里
 void TcpConnection::connectDestroyed()
 {
   loop_->assertInLoopThread();
   if (state_ == kConnected)
   {
     setState(kDisconnected);
+    // 关闭channel所有监听
     channel_->disableAll();
 
     connectionCallback_(shared_from_this());
   }
+  // 移除poller中的channel
   channel_->remove();
 }
 
