@@ -27,6 +27,7 @@ class InetAddress;
 ///
 /// Acceptor of incoming TCP connections.
 ///
+/// 负责接收并将
 class Acceptor : noncopyable
 {
  public:
@@ -45,7 +46,9 @@ class Acceptor : noncopyable
   void handleRead();
 
   EventLoop* loop_;
+  // listen socket fd
   Socket acceptSocket_;
+  // listen socket channel
   Channel acceptChannel_;
   NewConnectionCallback newConnectionCallback_;
   bool listenning_;

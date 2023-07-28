@@ -26,7 +26,8 @@ using namespace muduo::net;
 
 namespace
 {
-__thread EventLoop* t_loopInThisThread = 0;
+// __thread关键字: 线程局部变量, 仅修饰trival变量
+__thread EventLoop* t_loopInThisThread = 0;     
 
 const int kPollTimeMs = 10000;
 
@@ -70,6 +71,7 @@ EventLoop::EventLoop()
     threadId_(CurrentThread::tid()),
     poller_(Poller::newDefaultPoller(this)),
     timerQueue_(new TimerQueue(this)),
+    // 创建唤醒当前线程的fd
     wakeupFd_(createEventfd()),
     wakeupChannel_(new Channel(this, wakeupFd_)),
     currentActiveChannel_(NULL)
@@ -111,6 +113,7 @@ void EventLoop::loop()
   while (!quit_)
   {
     activeChannels_.clear();
+    // 调用poller监听事件，线程阻塞在这里
     pollReturnTime_ = poller_->poll(kPollTimeMs, &activeChannels_);
     ++iteration_;
     if (Logger::logLevel() <= Logger::TRACE)
@@ -147,12 +150,14 @@ void EventLoop::quit()
 
 void EventLoop::runInLoop(Functor cb)
 {
+  // 本线程调用，直接执行，应该只能发生在各种监听事件的回调函数中
   if (isInLoopThread())
   {
     cb();
   }
   else
   {
+  // 其他线程调用，加入任务队列
     queueInLoop(std::move(cb));
   }
 }
@@ -160,12 +165,17 @@ void EventLoop::runInLoop(Functor cb)
 void EventLoop::queueInLoop(Functor cb)
 {
   {
-  MutexLockGuard lock(mutex_);
+  // 其他线程调用addTimer时，会将封装好的Timer和插入函数传入pendingFunctors_，之后由IO线程执行插入
+  MutexLockGuard lock(mutex_);    
   pendingFunctors_.push_back(std::move(cb));
   }
 
+  // ???，不明白为什么callingPendingFunctors_需要唤醒loop线程 [Solved]
+  // 如果是其他线程调用runInLoop，进而会调用queueInLoop，则可能需要唤醒阻塞的loop线程
+  // 如果是本线程在doPendingFunctors函数中调用了queueInLoop，新加入的cb无法在本次循环中得到执行，loop会在下一次循环时陷入阻塞，因此需要唤醒loop
   if (!isInLoopThread() || callingPendingFunctors_)
   {
+    // 向poller发送事件，以唤醒loop
     wakeup();
   }
 }
@@ -200,6 +210,7 @@ void EventLoop::cancel(TimerId timerId)
 
 void EventLoop::updateChannel(Channel* channel)
 {
+  // channel表示的是一个文件描述符及其监听事件的集合，由poller对channel进行修改，即使用epoll_ctl更改感兴趣的事件集合
   assert(channel->ownerLoop() == this);
   assertInLoopThread();
   poller_->updateChannel(channel);
@@ -257,6 +268,8 @@ void EventLoop::doPendingFunctors()
   callingPendingFunctors_ = true;
 
   {
+  // pendingFunctors_有数据竞争，需要有互斥锁保护
+  // 减小了临界区，避免了functor再次调用queueInLoog造成死锁
   MutexLockGuard lock(mutex_);
   functors.swap(pendingFunctors_);
   }

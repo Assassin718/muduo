@@ -50,6 +50,9 @@ void Channel::tie(const std::shared_ptr<void>& obj)
   tied_ = true;
 }
 
+// 调用EventLoop::updateChannel(), 调用Poller::updateChannel()
+// 对于epoll, 根据channel.index()判断是新增/修改
+// 将channel加入fd : channel的channelMap, 并调用epoll_ctl监听channel->fd的channel->events事件
 void Channel::update()
 {
   addedToLoop_ = true;
@@ -66,8 +69,10 @@ void Channel::remove()
 void Channel::handleEvent(Timestamp receiveTime)
 {
   std::shared_ptr<void> guard;
+  // 这里绑定的是一个TcpConnetion对象, 在Acceptor完成连接建立后会调用TcpConnection::connectEstablished(), 绑定TcpConnection对象
   if (tied_)
   {
+    // 如果TcpConnection对象还存活, 则处理事件
     guard = tie_.lock();
     if (guard)
     {

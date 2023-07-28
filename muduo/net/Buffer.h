@@ -39,6 +39,9 @@ namespace net
 /// |                   |                  |                  |
 /// 0      <=      readerIndex   <=   writerIndex    <=     size
 /// @endcode
+
+// 对于inputBuffer, 写者是网络, 读者是用户
+// 对于outputBuffer, 写者是用户, 读者是网络
 class Buffer : public muduo::copyable
 {
  public:

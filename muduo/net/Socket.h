@@ -31,6 +31,7 @@ class InetAddress;
 ///
 /// It closes the sockfd when desctructs.
 /// It's thread safe, all operations are delagated to OS.
+/// 负责接收一个fd, 并调用各种关于fd的系统调用, 真正拥有该文件描述符
 class Socket : noncopyable
 {
  public:

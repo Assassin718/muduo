@@ -58,6 +58,7 @@ class Poller : noncopyable
   }
 
  protected:
+  // poller拥有所有channel
   typedef std::map<int, Channel*> ChannelMap;
   ChannelMap channels_;
 

@@ -52,6 +52,7 @@ void Acceptor::listen()
   acceptChannel_.enableReading();
 }
 
+// listen socket channel调用readCallback调用该函数, 建立连接后, 调用newConnectionCallback(TcpServer::newConnection), 将新连接的fd分发给一个TcpConnection
 void Acceptor::handleRead()
 {
   loop_->assertInLoopThread();

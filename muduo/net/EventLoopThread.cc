@@ -39,8 +39,10 @@ EventLoopThread::~EventLoopThread()
 EventLoop* EventLoopThread::startLoop()
 {
   assert(!thread_.started());
+  // 启动线程，调用threadFunc()，构造EventLoop并启动loop
   thread_.start();
 
+  // 循环等待threadFunc()将新创建的loop赋给loop_，并返回该loop
   EventLoop* loop = NULL;
   {
     MutexLockGuard lock(mutex_);

@@ -64,6 +64,7 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
   if (numEvents > 0)
   {
     LOG_TRACE << numEvents << " events happened";
+    // 将有事件的channel填入activeChannels并返回
     fillActiveChannels(numEvents, activeChannels);
     if (implicit_cast<size_t>(numEvents) == events_.size())
     {
@@ -104,6 +105,8 @@ void EPollPoller::fillActiveChannels(int numEvents,
   }
 }
 
+// 仅仅将channel加入到channelMap中, 并更新其index_
+// 之后调用EpollPoller::update()函数真正创建epoll_event, 并调用epoll_ctl向系统注册监听事件
 void EPollPoller::updateChannel(Channel* channel)
 {
   Poller::assertInLoopThread();
@@ -113,6 +116,7 @@ void EPollPoller::updateChannel(Channel* channel)
   if (index == kNew || index == kDeleted)
   {
     // a new one, add with EPOLL_CTL_ADD
+    // index == kNew表示新增一个channel
     int fd = channel->fd();
     if (index == kNew)
     {
@@ -120,6 +124,7 @@ void EPollPoller::updateChannel(Channel* channel)
       channels_[fd] = channel;
     }
     else // index == kDeleted
+    // index == kDeleted表示恢复失效的channel
     {
       assert(channels_.find(fd) != channels_.end());
       assert(channels_[fd] == channel);
@@ -137,6 +142,7 @@ void EPollPoller::updateChannel(Channel* channel)
     assert(channels_[fd] == channel);
     assert(index == kAdded);
     if (channel->isNoneEvent())
+    // 如果监听事件为空，则表示将该文件描述符移除epoll关注事件，将index标记为kDeleted，但不从channels中移除???
     {
       update(EPOLL_CTL_DEL, channel);
       channel->set_index(kDeleted);
@@ -148,6 +154,7 @@ void EPollPoller::updateChannel(Channel* channel)
   }
 }
 
+// TcpConnetion析构的时候也即断开连接时才会调用removeChannel, 将channel从channelMap中移除, 否则channel一直存在于channelMap中
 void EPollPoller::removeChannel(Channel* channel)
 {
   Poller::assertInLoopThread();
